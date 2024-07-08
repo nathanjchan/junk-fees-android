@@ -3,6 +3,7 @@ package com.nathanjchan.junkfees
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Card
@@ -22,7 +23,6 @@ import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.MapViewportState
 import com.nathanjchan.junkfees.ui.theme.JunkFeesTheme
 import java.sql.Timestamp
-import java.util.*
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,6 +35,22 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+data class Place(
+    val id: String,
+    val title: String,
+    val description: String,
+    val timestamp: Timestamp,
+    val fee: Float
+)
+val places = listOf(
+    Place("1", "Liholiho Yacht Club", "400 Eddy St, San Francisco, CA 94109",
+        Timestamp(System.currentTimeMillis()), 0.15f),
+    Place("2", "Chittychitty Boat Barn", "123 Main St, San Francisco, CA 94109",
+        Timestamp(System.currentTimeMillis()), 0.06f),
+    Place("3", "Rizzy Rowing Company", "987 Elm St, San Francisco, CA 94109",
+        Timestamp(System.currentTimeMillis()), 0.10f),
+)
+
 @OptIn(ExperimentalMaterial3Api::class, MapboxExperimental::class)
 @Composable
 fun MapWithBottomSheet() {
@@ -44,7 +60,7 @@ fun MapWithBottomSheet() {
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
         sheetContent = {
-            BottomSheetContent()
+            BottomSheetContent(places)
         },
         sheetPeekHeight = sheetPeekHeight
     ) {
@@ -64,60 +80,39 @@ fun MapWithBottomSheet() {
 }
 
 @Composable
-fun BottomSheetContent() {
+fun BottomSheetContent(data: List<Place>) {
+    var selectedPlaceId by remember { mutableStateOf<String?>(null) }
+
     Column(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Recently Reported",
+        Text(
+            "Recently Reported",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.outline
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        data.forEach { place ->
+            PlaceItem(
+                place = place,
+                onClick = { selectedPlaceId = place.id }
             )
-        Spacer(modifier = Modifier.height(16.dp))
-        // Add your menu items here
-        BottomSheetItem("Liholiho Yacht Club", "400 Eddy St, San Francisco, CA 94109",
-            Timestamp(System.currentTimeMillis()), 0.25f)
-        BottomSheetItem("Liholiho Yacht Club", "400 Eddy St, San Francisco, CA 94109",
-            Timestamp(System.currentTimeMillis()), 0.25f)
-        BottomSheetItem("Liholiho Yacht Club", "400 Eddy St, San Francisco, CA 94109",
-            Timestamp(System.currentTimeMillis()), 0.25f)
+        }
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
-fun lastUpdatedText(timestamp: Timestamp): String {
-    val currentTime = Calendar.getInstance().timeInMillis
-    val elapsedTime = currentTime - timestamp.time
-    val timeAgoText = when {
-        elapsedTime < 60 * 60 * 1000 -> {
-            val minutesAgo = elapsedTime / (60 * 1000)
-            if (minutesAgo == 1L) "1 minute ago" else "$minutesAgo minutes ago"
-        }
-        elapsedTime < 24 * 60 * 60 * 1000 -> {
-            val hoursAgo = elapsedTime / (60 * 60 * 1000)
-            if (hoursAgo == 1L) "1 hour ago" else "$hoursAgo hours ago"
-        }
-        else -> {
-            val daysAgo = elapsedTime / (24 * 60 * 60 * 1000)
-            if (daysAgo == 1L) "1 day ago" else "$daysAgo days ago"
-        }
-    }
-    return timeAgoText
-}
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BottomSheetItem(title: String, description: String, timestamp: Timestamp, fee: Float) {
+fun PlaceItem(place: Place, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 6.dp
-        ),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-        )
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        onClick = onClick
     ) {
         Row(
             modifier = Modifier
@@ -132,23 +127,21 @@ fun BottomSheetItem(title: String, description: String, timestamp: Timestamp, fe
                     .weight(1f)
                     .padding(end = 8.dp)
             ) {
-                Text(title, style = MaterialTheme.typography.headlineSmall)
+                Text(place.title, style = MaterialTheme.typography.headlineSmall)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(description, style = MaterialTheme.typography.bodySmall)
+                Text(place.description, style = MaterialTheme.typography.bodySmall)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Reported ${lastUpdatedText(timestamp)}",
+                    text = "Reported ${lastUpdatedText(place.timestamp)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.outline
                 )
             }
 
             // Right column
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    "${"%.0f".format(fee * 100)}%",
+                    "${"%.0f".format(place.fee * 100)}%",
                     style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -162,18 +155,19 @@ fun BottomSheetItem(title: String, description: String, timestamp: Timestamp, fe
     }
 }
 
+
+
 @Preview(showBackground = true)
 @Composable
-fun BottomSheetItemPreview() {
+fun PlaceItemPreview() {
     JunkFeesTheme {
-        BottomSheetItem("Liholiho Yacht Club", "400 Eddy St, San Francisco, CA 94109",
-            Timestamp(System.currentTimeMillis()), 0.25f)
+        PlaceItem(places[0]) {}
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun GreetingPreview() {
+fun MapWithBottomSheetPreview() {
     JunkFeesTheme {
         MapWithBottomSheet()
     }
